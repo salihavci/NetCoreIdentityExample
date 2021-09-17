@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NetCoreIdentityExample.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,6 +28,9 @@ namespace NetCoreIdentityExample
         {
             services.AddControllersWithViews().AddRazorRuntimeCompilation();
             services.AddMvc();
+            services.AddDbContext<AppIdentityDbContext>(
+                options=>options.UseSqlServer("name=ConnectionStrings:DefaultConnection").UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+            services.AddIdentity<AppUser,AppRole>().AddEntityFrameworkStores<AppIdentityDbContext>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
