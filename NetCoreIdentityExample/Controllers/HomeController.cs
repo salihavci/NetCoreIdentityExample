@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NetCoreIdentityExample.DTO.ViewModels;
+using NetCoreIdentityExample.Helpers;
 using NetCoreIdentityExample.Models;
 using System;
 using System.Collections.Generic;
@@ -17,11 +19,13 @@ namespace NetCoreIdentityExample.Controllers
         private readonly ILogger<HomeController> _logger;
         private UserManager<AppUser> _userManager { get; }
         private SignInManager<AppUser> _signInManager { get; }
-        public HomeController(ILogger<HomeController> logger,UserManager<AppUser> userManager,SignInManager<AppUser> signInManager)
+        private readonly IConfiguration _config;
+        public HomeController(ILogger<HomeController> logger,UserManager<AppUser> userManager,SignInManager<AppUser> signInManager,IConfiguration config)
         {
             _userManager = userManager;
             _logger = logger;
             _signInManager = signInManager;
+            _config = config;
         }
 
         public IActionResult Index()
@@ -151,10 +155,93 @@ namespace NetCoreIdentityExample.Controllers
             }
         }
 
+        [HttpGet]
+        public IActionResult ResetPassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword([Bind("Email")]ResetPasswordVM user)
+        {
+            try
+            {
+                AppUser users = await _userManager.FindByEmailAsync(user.Email);
+                PasswordReset reset = new PasswordReset(_config);
+                if (users != null)
+                {
+                    string resetToken = await _userManager.GeneratePasswordResetTokenAsync(users);
+                    string link = Url.Action("ResetPasswordConfirm", "Home", new { UserId = users.Id, token = resetToken }, HttpContext.Request.Scheme);
+                    reset.SendMail(link);
+                    ViewBag.status = "Success";
+                }
+                else
+                {
+                    ModelState.AddModelError("","Bu email adresine kayıtlı bir hesap bulunamamıştır. Lütfen tekrar deneyiniz.");
+                    ViewBag.status = "Error";
+                }
+                return View(user);
+            }
+            catch (Exception ex)
+            {
+                return View(user);
+            }
+        }
+
+        [HttpGet]
+        public IActionResult ResetPasswordConfirm(string UserId, string token)
+        {
+            TempData["UserId"] = UserId;
+            TempData["token"] = token;
+            return View();
+
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPasswordConfirm([Bind("PasswordNew")]ResetPasswordVM user)
+        {
+            try
+            {
+                string token = TempData["token"].ToString();
+                string UserId = TempData["UserId"].ToString();
+                AppUser users = await _userManager.FindByIdAsync(UserId);
+                if (users != null)
+                {
+                    IdentityResult result = await _userManager.ResetPasswordAsync(users, token, user.PasswordNew);
+                    if (result.Succeeded)
+                    {
+                        //Şifre değiştikten sonraki snapshot'u alır ve o alanı günceller (SecurityStamp)
+                        await _userManager.UpdateSecurityStampAsync(users);
+                        ViewBag.status = "Success";
+                        //return RedirectToAction("Index", "Home");
+                    }
+                    else
+                    {
+                        foreach (var item in result.Errors)
+                        {
+                            ModelState.AddModelError("", item.Description);
+                        }
+                        return View(users);
+                    }
+                }
+                else
+                {
+                    ModelState.AddModelError("","Böyle bir kullanıcı bulunamadı. Lütfen tekrar deneyiniz.");
+                }
+                return View(user);
+            }
+            catch (Exception ex)
+            {
+                return View(user);
+            }
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
+        
     }
 }

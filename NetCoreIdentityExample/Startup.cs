@@ -43,7 +43,8 @@ namespace NetCoreIdentityExample
                 m.Password.RequiredUniqueChars = 0;
                 m.User.RequireUniqueEmail = true;
                 m.User.AllowedUserNameCharacters = "abcçdefgðhýijklmnoöpqrsþtuüvwxyzABCÇDEFGÐHIÝJKLMNOÖPQRSÞTUÜVWXYZ0123456789-._";
-            }).AddEntityFrameworkStores<AppIdentityDbContext>().AddPasswordValidator<PasswordValidator>().AddUserValidator<UserValidator>().AddErrorDescriber<CustomIdentityErrorDescriber>();
+            }).AddEntityFrameworkStores<AppIdentityDbContext>().AddPasswordValidator<PasswordValidator>()
+            .AddUserValidator<UserValidator>().AddErrorDescriber<CustomIdentityErrorDescriber>().AddDefaultTokenProviders();
             //------------------------------Add Cookie----------------------------------------
             CookieBuilder cookieBuilder = new CookieBuilder();
             cookieBuilder.Name = "LoggedUser";
