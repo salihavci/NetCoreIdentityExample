@@ -56,7 +56,7 @@ namespace NetCoreIdentityExample
             services.ConfigureApplicationCookie(m =>
             {
                 m.LoginPath = new PathString("/Home/Login");
-                //m.LogoutPath = new PathString("/Home/Logout");
+                m.LogoutPath = new PathString("/Member/Logout");
                 m.Cookie = cookieBuilder;
                 m.SlidingExpiration = true; //Eðer true olursa tekrar cookie süresi uzayacak.
                 m.ExpireTimeSpan = TimeSpan.FromDays(60);

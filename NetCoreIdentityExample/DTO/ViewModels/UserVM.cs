@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NetCoreIdentityExample.DTO.Enums;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -24,6 +25,19 @@ namespace NetCoreIdentityExample.DTO.ViewModels
         [Display(Name = "Parola")]
         [DataType(DataType.Password)]
         public string Password { get; set; }
+
+        [Display(Name = "Doğum Tarihi")]
+        [DataType(DataType.Date)]
+        public DateTime? Birthday { get; set; }
+
+        public string Picture { get; set; }
+
+        [Display(Name = "Şehir")]
+        public string City { get; set; }
+
+        [Display(Name = "Cinsiyet")]
+        public Gender Gender { get; set; }
+
 
     }
 }

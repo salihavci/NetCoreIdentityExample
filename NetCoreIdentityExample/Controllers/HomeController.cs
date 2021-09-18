@@ -14,22 +14,20 @@ using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 
 namespace NetCoreIdentityExample.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController : BaseController
     {
-        private readonly ILogger<HomeController> _logger;
-        private UserManager<AppUser> _userManager { get; }
-        private SignInManager<AppUser> _signInManager { get; }
-        private readonly IConfiguration _config;
-        public HomeController(ILogger<HomeController> logger,UserManager<AppUser> userManager,SignInManager<AppUser> signInManager,IConfiguration config)
+       
+        public HomeController(ILogger<HomeController> logger,UserManager<AppUser> userManager,SignInManager<AppUser> signInManager,IConfiguration config) : base(logger,userManager,signInManager,config)
         {
-            _userManager = userManager;
-            _logger = logger;
-            _signInManager = signInManager;
-            _config = config;
+            
         }
 
         public IActionResult Index()
         {
+            if (User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Index", "Member");
+            }
             return View();
         }
 
@@ -62,10 +60,7 @@ namespace NetCoreIdentityExample.Controllers
                     }
                     else
                     {
-                        foreach (var item in result.Errors)
-                        {
-                            ModelState.AddModelError("", item.Description);
-                        }
+                        AddModelError(result);
                     }
                     
                 }
@@ -217,10 +212,7 @@ namespace NetCoreIdentityExample.Controllers
                     }
                     else
                     {
-                        foreach (var item in result.Errors)
-                        {
-                            ModelState.AddModelError("", item.Description);
-                        }
+                        AddModelError(result);
                         return View(users);
                     }
                 }
