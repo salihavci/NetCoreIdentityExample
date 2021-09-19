@@ -7,7 +7,7 @@
 <h3 class="text-center">Kullanıcı Bilgileri</h3>
 <div class="row">
     <div class="col-3">
-        <img src="@Model.Picture" style="width:100%; height:100%;"/>
+        <img src="@Model.Picture" style="width:100%; height:100%;" />
     </div>
     <div class="col-9 table-responsive mt-5">
         <table class="table table-bordered table-striped">
@@ -29,11 +29,29 @@
             </tr>
             <tr>
                 <th>Doğum Tarihi</th>
-                <td>@Model.Birthday.Value.ToShortDateString()</td>
+                <td>
+                    @if (Model.Birthday != null)
+                    {
+                        @Model.Birthday?.ToShortDateString()
+                    }
+                    else
+                    {
+                        <span>Belirtilmemiş</span>
+                    }
+                </td><!--Null olacağı için nullsa null döndür değilse değeri döndür anlamına geliyor-->
             </tr>
             <tr>
                 <th>Şehir</th>
-                <td>@Model.City</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(Model.City))
+                    {
+                        @Model.City
+                    }
+                    else
+                    {
+                        <span>Belirtilmemiş</span>
+                    }
+                </td>
             </tr>
         </table>
     </div>

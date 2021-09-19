@@ -17,7 +17,7 @@ namespace NetCoreIdentityExample.Controllers
     public class HomeController : BaseController
     {
        
-        public HomeController(ILogger<HomeController> logger,UserManager<AppUser> userManager,SignInManager<AppUser> signInManager,IConfiguration config) : base(logger,userManager,signInManager,config)
+        public HomeController(ILogger<HomeController> logger,UserManager<AppUser> userManager,SignInManager<AppUser> signInManager,IConfiguration config) : base(logger,userManager,signInManager,config,null)
         {
             
         }

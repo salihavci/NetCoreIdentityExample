@@ -1,0 +1,44 @@
+﻿@model List<AppRole>
+@{
+    ViewData["Title"] = "Roles";
+    Layout = "~/Views/Shared/_AdminLayoutcshtml.cshtml";
+}
+@*@if (ViewBag.hata != null)
+{
+    <div class="alert alert-danger col-12">@ViewBag.hata</div>
+}*@
+<a asp-action="CreateRole" asp-controller="Admin" class="btn btn-info float-right col-4">Rol Oluştur</a>
+<table class="table table-bordered table-striped mt-5">
+    <thead>
+        <tr>
+            <th style="width:40%;">#</th>
+            <th>Role Name</th>
+            <th>Transactions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Count == 0)
+        {
+            <tr>
+                <td colspan="2">Hiç bir rol bulunmamaktadır.</td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td style="width:40%;">@item.Id</td>
+                    <td>@item.Name</td>
+                    <td>
+                        <form asp-action="DeleteRole" asp-controller="Admin" asp-route-id="@item.Id" method="post">
+                            <input type="submit" class="btn btn-primary" value="Sil" /> | <a asp-action="UpdateRole" asp-controller="Admin" asp-route-id="@item.Id" class="btn btn-primary">Güncelle</a>
+                        </form>
+                        
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+
+</table>

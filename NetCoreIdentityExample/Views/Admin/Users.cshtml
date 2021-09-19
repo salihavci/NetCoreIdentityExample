@@ -1,0 +1,39 @@
+﻿@model List<AppUser>
+@{
+    ViewData["Title"] = "Users";
+    Layout = "~/Views/Shared/_AdminLayoutcshtml.cshtml";
+}
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Roles</th>
+            <th>Transaction</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Count == 0)
+        {
+            <tr>
+                <td colspan="3">Hiç bir üye bulunmamaktadır.</td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.Id</td>
+                    <td>@item.UserName</td>
+                    <td>@item.Email</td>
+                    <td user-roles="@item.Id"></td>
+                    <td><a class="btn btn-primary" asp-action="AssignRole" asp-controller="Admin" asp-route-id="@item.Id">Yekilendir</a></td>
+                </tr>
+            }
+        }
+    </tbody>
+
+</table>

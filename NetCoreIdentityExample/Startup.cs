@@ -57,6 +57,7 @@ namespace NetCoreIdentityExample
             {
                 m.LoginPath = new PathString("/Home/Login");
                 m.LogoutPath = new PathString("/Member/Logout");
+                m.AccessDeniedPath = new PathString("/Member/AccessDenied"); //Kullanýcýnýn kendi rolü dýþýndaki roldeki sayfaya eriþmeye çalýþtýðýnda vereceði hatanýn sayfasý
                 m.Cookie = cookieBuilder;
                 m.SlidingExpiration = true; //Eðer true olursa tekrar cookie süresi uzayacak.
                 m.ExpireTimeSpan = TimeSpan.FromDays(60);

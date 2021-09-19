@@ -17,13 +17,15 @@ namespace NetCoreIdentityExample.Controllers
         protected SignInManager<AppUser> _signInManager { get; }
         protected readonly IConfiguration _config;
         protected Task<AppUser> CurrentUser => _userManager.FindByNameAsync(User.Identity.Name);
+        protected RoleManager<AppRole> _roleManager { get; }
 
-        public BaseController(ILogger<BaseController> logger, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IConfiguration config)
+        public BaseController(ILogger<BaseController> logger, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IConfiguration config,RoleManager<AppRole> roleManager)
         {
             _userManager = userManager;
             _logger = logger;
             _signInManager = signInManager;
             _config = config;
+            _roleManager = roleManager;
         }
         public void AddModelError(IdentityResult result)
         {

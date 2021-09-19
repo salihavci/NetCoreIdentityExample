@@ -15,11 +15,11 @@ using System.IO;
 
 namespace NetCoreIdentityExample.Controllers
 {
-    [Authorize] //Bu controller'a sadece üyeler girebilir.
+    [Authorize(Roles ="Admin,Members")] //Bu controller'a sadece üyeler girebilir.
     public class MemberController : BaseController
     {
 
-        public MemberController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager):base(null,userManager,signInManager,null)
+        public MemberController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager):base(null,userManager,signInManager,null,null)
         {
         }
         //[Authorize] //Bu sayfaya sadece üyeler girebilir.
@@ -143,13 +143,26 @@ namespace NetCoreIdentityExample.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpGet]
         public IActionResult Logout()
         {
 
             _signInManager.SignOutAsync();
             return RedirectToAction("Login", "Home");
         }
+
+        public IActionResult AccessDenied()
+        {
+            return View();
+        }
+
+        [Authorize(Roles = "Editor")]
+        [HttpGet]
+        public IActionResult Editor()
+        {
+            return View();
+        }
+
 
     }
 }
