@@ -46,6 +46,13 @@ namespace NetCoreIdentityExample
             });
 
 
+            //------------------------------Add Authentication Methods-------------------------
+
+            services.AddAuthentication().AddFacebook(m=> {
+                m.AppId = Configuration["Authentication:Facebook:AppId"];
+                m.AppSecret = Configuration["Authentication:Facebook:AppSecret"];
+            });
+
             //------------------------------Add Policy Handle ---------------------------------
             services.AddTransient<IAuthorizationHandler, ExpireDateExchangeHandler>();
 
@@ -62,7 +69,7 @@ namespace NetCoreIdentityExample
             }).AddEntityFrameworkStores<AppIdentityDbContext>().AddPasswordValidator<PasswordValidator>()
             .AddUserValidator<UserValidator>().AddErrorDescriber<CustomIdentityErrorDescriber>()
             .AddDefaultTokenProviders();
-            //------------------------------Add Cookie----------------------------------------
+            //------------------------------Add Cookie-----------------------------------------
             CookieBuilder cookieBuilder = new CookieBuilder();
             cookieBuilder.Name = "LoggedUser";
             cookieBuilder.HttpOnly = false;
@@ -80,7 +87,7 @@ namespace NetCoreIdentityExample
                 m.ExpireTimeSpan = TimeSpan.FromDays(60);
             });
 
-            //----------------------------Dependency Injection-----------------------------------
+            //----------------------------Dependency Injection---------------------------------
             services.AddScoped<IClaimsTransformation, ClaimProvider>(); //Her request'te bu nesneyi oluþtur. (Transient = Her karþýlaþtýðýnda oluþtur, Singleton = Uygulama bir kere ayaða kalktýðý zaman olutþtur ve lifecycle dolana kadar kalsýn)
         }
 

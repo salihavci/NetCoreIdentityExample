@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 
@@ -16,10 +17,10 @@ namespace NetCoreIdentityExample.Controllers
 {
     public class HomeController : BaseController
     {
-       
-        public HomeController(ILogger<HomeController> logger,UserManager<AppUser> userManager,SignInManager<AppUser> signInManager,IConfiguration config) : base(logger,userManager,signInManager,config,null)
+
+        public HomeController(ILogger<HomeController> logger, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IConfiguration config) : base(logger, userManager, signInManager, config, null)
         {
-            
+
         }
 
         public IActionResult Index()
@@ -53,11 +54,11 @@ namespace NetCoreIdentityExample.Controllers
                     appUser.UserName = users.UserName;
                     appUser.Email = users.Email;
                     appUser.PhoneNumber = users.PhoneNumber;
-                    IdentityResult result = await _userManager.CreateAsync(appUser,users.Password);
+                    IdentityResult result = await _userManager.CreateAsync(appUser, users.Password);
                     if (result.Succeeded)
                     {
                         string confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
-                        string link = Url.Action("ConfirmEmail","Home",new { userId = appUser.Id, token = confirmationToken },HttpContext.Request.Scheme);
+                        string link = Url.Action("ConfirmEmail", "Home", new { userId = appUser.Id, token = confirmationToken }, HttpContext.Request.Scheme);
                         EmailConfirmation confirmation = new EmailConfirmation(_config);
                         confirmation.SendMail(link, appUser.Email);
                         return RedirectToAction("Login", "Home");
@@ -66,7 +67,7 @@ namespace NetCoreIdentityExample.Controllers
                     {
                         AddModelError(result);
                     }
-                    
+
                 }
                 return View(users);
             }
@@ -82,7 +83,7 @@ namespace NetCoreIdentityExample.Controllers
             TempData["ReturnUrl"] = returnUrl;
             return View();
         }
-       
+
         [HttpPost]
         public async Task<IActionResult> Login(LoginVM user)
         {
@@ -95,12 +96,12 @@ namespace NetCoreIdentityExample.Controllers
                     {
                         if (await _userManager.IsLockedOutAsync(users)) //Kullanıcı kilitlenme durumunu kontrol et.
                         {
-                            ModelState.AddModelError("","Hesabınız bir süreliğine kilitlenmiştir. Lütfen daha sonra tekrar deneyiniz.");
+                            ModelState.AddModelError("", "Hesabınız bir süreliğine kilitlenmiştir. Lütfen daha sonra tekrar deneyiniz.");
                             return View(user);
                         }
                         if (!_userManager.IsEmailConfirmedAsync(users).Result)
                         {
-                            ModelState.AddModelError("","Hesabınız aktifleştirilemediği için giriş yapamazsınız. Öncelikle üyeliğinizi aktifleştirmeniz gerekmektedir.");
+                            ModelState.AddModelError("", "Hesabınız aktifleştirilemediği için giriş yapamazsınız. Öncelikle üyeliğinizi aktifleştirmeniz gerekmektedir.");
                             return View(user);
                         }
                         await _signInManager.SignOutAsync();
@@ -137,9 +138,9 @@ namespace NetCoreIdentityExample.Controllers
                                     ModelState.AddModelError("", "Geçersiz email adresi ve ya şifresi.");
                                 }
                             }
-                            
+
                         }
-                        
+
                         //else if (result.IsNotAllowed) // Kullanıcı giriş yapıp yapamayacağı durumda doğru bilgileri girdiğindeki durum
                         //{ 
 
@@ -148,7 +149,7 @@ namespace NetCoreIdentityExample.Controllers
                     else
                     {
                         //ModelState.AddModelError(nameof(LoginVM.Email),"Geçersiz email adresi ve ya şifresi."); // Sadece Email'in summary kısmına modelerror ekler
-                        ModelState.AddModelError("","Bu Email adresine ait kayıtlı kullanıcı bulunamamıştır.");
+                        ModelState.AddModelError("", "Bu Email adresine ait kayıtlı kullanıcı bulunamamıştır.");
                     }
                 }
                 return View(user);
@@ -166,7 +167,7 @@ namespace NetCoreIdentityExample.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ResetPassword([Bind("Email")]ResetPasswordVM user)
+        public async Task<IActionResult> ResetPassword([Bind("Email")] ResetPasswordVM user)
         {
             try
             {
@@ -181,7 +182,7 @@ namespace NetCoreIdentityExample.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError("","Bu email adresine kayıtlı bir hesap bulunamamıştır. Lütfen tekrar deneyiniz.");
+                    ModelState.AddModelError("", "Bu email adresine kayıtlı bir hesap bulunamamıştır. Lütfen tekrar deneyiniz.");
                     ViewBag.status = "Error";
                 }
                 return View(user);
@@ -202,7 +203,7 @@ namespace NetCoreIdentityExample.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ResetPasswordConfirm([Bind("PasswordNew")]ResetPasswordVM user)
+        public async Task<IActionResult> ResetPasswordConfirm([Bind("PasswordNew")] ResetPasswordVM user)
         {
             try
             {
@@ -227,7 +228,7 @@ namespace NetCoreIdentityExample.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError("","Böyle bir kullanıcı bulunamadı. Lütfen tekrar deneyiniz.");
+                    ModelState.AddModelError("", "Böyle bir kullanıcı bulunamadı. Lütfen tekrar deneyiniz.");
                 }
                 return View(user);
             }
@@ -264,12 +265,82 @@ namespace NetCoreIdentityExample.Controllers
             }
         }
 
+        [HttpGet]
+        public IActionResult FacebookLogin(string ReturnUrl)
+        {
+            string redirectUrl = Url.Action("ExternalResponse", "Home", new { ReturnUrl = ReturnUrl });
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties("Facebook", redirectUrl);
+            return new ChallengeResult("Facebook", properties); //Facebook'a kendi verdiğimiz property'ler ile git diyoruz.
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExternalResponse(string ReturnUrl = "/")
+        {
+            try
+            {
+                ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
+                if (info == null)
+                {
+                    return RedirectToAction("Login", "Home");
+                }
+                else
+                {
+                    SignInResult result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, true);
+                    if (result.Succeeded)
+                    {
+                        return Redirect(ReturnUrl);
+                    }
+                    else
+                    {
+                        AppUser user = new AppUser();
+                        user.Email = info.Principal.FindFirst(ClaimTypes.Email).Value; //Kullanıcının emaili
+                        string ExternalUserId = info.Principal.FindFirst(ClaimTypes.NameIdentifier).Value; //Kullanıcının facebook id'si
+                        if (info.Principal.HasClaim(x => x.Type == ClaimTypes.Name)) //Kullanıcının Adı ve Soyadı
+                        {
+                            string userName = info.Principal.FindFirst(ClaimTypes.Name).Value;
+                            userName = userName.Replace(" ", "-").ToLower() + ExternalUserId.Substring(0, 5).ToString();
+                            user.UserName = userName;
+                        }
+                        else
+                        {
+                            user.UserName = info.Principal.FindFirst(ClaimTypes.Email).Value;
+                        }
+                        IdentityResult results = await _userManager.CreateAsync(user);
+                        if (results.Succeeded)
+                        {
+                            IdentityResult LoginResult = await _userManager.AddLoginAsync(user, info); //Facebook - Google login olduğunda tabloya kayıt atar - Eğer kayıtlı değilse.
+                            if (LoginResult.Succeeded)
+                            {
+                                await _signInManager.SignOutAsync();
+                                await _signInManager.SignInAsync(user, true);
+                                return Redirect(ReturnUrl);
+                            }
+                            else
+                            {
+                                AddModelError(LoginResult);
+                            }
+                        }
+                        else
+                        {
+                            AddModelError(results);
+                        }
+                    }
+                }
+                return RedirectToAction("Error", "Home");
+            }
+            catch (Exception ex)
+            {
+                return RedirectToAction("Error", "Home");
+            }
+
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        
+
     }
 }
