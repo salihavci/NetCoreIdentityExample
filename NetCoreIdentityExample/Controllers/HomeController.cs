@@ -57,6 +57,10 @@ namespace NetCoreIdentityExample.Controllers
                     IdentityResult result = await _userManager.CreateAsync(appUser, users.Password);
                     if (result.Succeeded)
                     {
+                        if (!_userManager.IsInRoleAsync(appUser, "Members").Result)
+                        {
+                            await _userManager.AddToRoleAsync(appUser, "Members");
+                        }
                         string confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
                         string link = Url.Action("ConfirmEmail", "Home", new { userId = appUser.Id, token = confirmationToken }, HttpContext.Request.Scheme);
                         EmailConfirmation confirmation = new EmailConfirmation(_config);
@@ -323,6 +327,7 @@ namespace NetCoreIdentityExample.Controllers
                         AppUser user2 = await _userManager.FindByEmailAsync(user.Email);
                         if (user2 == null)
                         {
+                            user.EmailConfirmed = true;
                             IdentityResult results = await _userManager.CreateAsync(user);
                             if (results.Succeeded)
                             {
@@ -334,6 +339,10 @@ namespace NetCoreIdentityExample.Controllers
                                     //await _signInManager.SignInAsync(user, true);
 
                                     //External login - signup için kullanılan method (Claim için yapıldı)
+                                    if (!_userManager.IsInRoleAsync(user2, "Members").Result)
+                                    {
+                                        await _userManager.AddToRoleAsync(user2, "Members");
+                                    }
                                     await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, true);
                                     return Redirect(ReturnUrl);
                                 }
