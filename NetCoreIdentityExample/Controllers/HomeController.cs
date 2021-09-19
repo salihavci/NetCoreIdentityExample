@@ -56,6 +56,10 @@ namespace NetCoreIdentityExample.Controllers
                     IdentityResult result = await _userManager.CreateAsync(appUser,users.Password);
                     if (result.Succeeded)
                     {
+                        string confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
+                        string link = Url.Action("ConfirmEmail","Home",new { userId = appUser.Id, token = confirmationToken },HttpContext.Request.Scheme);
+                        EmailConfirmation confirmation = new EmailConfirmation(_config);
+                        confirmation.SendMail(link, appUser.Email);
                         return RedirectToAction("Login", "Home");
                     }
                     else
@@ -92,8 +96,13 @@ namespace NetCoreIdentityExample.Controllers
                         if (await _userManager.IsLockedOutAsync(users)) //Kullanıcı kilitlenme durumunu kontrol et.
                         {
                             ModelState.AddModelError("","Hesabınız bir süreliğine kilitlenmiştir. Lütfen daha sonra tekrar deneyiniz.");
+                            return View(user);
                         }
-
+                        if (!_userManager.IsEmailConfirmedAsync(users).Result)
+                        {
+                            ModelState.AddModelError("","Hesabınız aktifleştirilemediği için giriş yapamazsınız. Öncelikle üyeliğinizi aktifleştirmeniz gerekmektedir.");
+                            return View(user);
+                        }
                         await _signInManager.SignOutAsync();
                         //3. parametre beni hatırla bölümü için
                         //4. parametre kullanıcı kilitleme için
@@ -167,7 +176,7 @@ namespace NetCoreIdentityExample.Controllers
                 {
                     string resetToken = await _userManager.GeneratePasswordResetTokenAsync(users);
                     string link = Url.Action("ResetPasswordConfirm", "Home", new { UserId = users.Id, token = resetToken }, HttpContext.Request.Scheme);
-                    reset.SendMail(link);
+                    reset.SendMail(link, user.Email);
                     ViewBag.status = "Success";
                 }
                 else
@@ -225,6 +234,33 @@ namespace NetCoreIdentityExample.Controllers
             catch (Exception ex)
             {
                 return View(user);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ConfirmEmail(string userId, string token)
+        {
+            try
+            {
+                TempData["UserId"] = userId;
+                TempData["token"] = token;
+                var user = await _userManager.FindByIdAsync(userId);
+                IdentityResult result = await _userManager.ConfirmEmailAsync(user, token);
+                if (result.Succeeded)
+                {
+                    ViewBag.status = "Email adresiniz onaylanmıştır. Login ekranından kullanıcı girişi yapabilirsiniz.";
+                }
+                else
+                {
+                    ViewBag.status = "Bir hata meydana geldi. Lütfen daha sonra tekrar deneyiniz.";
+                }
+                return View();
+
+            }
+            catch (Exception ex)
+            {
+                ViewBag.status = "Bir hata meydana geldi. Lütfen daha sonra tekrar deneyiniz.";
+                return View();
             }
         }
 

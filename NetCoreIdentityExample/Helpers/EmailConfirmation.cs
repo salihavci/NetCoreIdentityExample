@@ -1,33 +1,33 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using MimeKit;
 using MimeKit.Text;
-using MailKit;
-using MailKit.Net.Smtp;
-using MailKit.Security;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
 namespace NetCoreIdentityExample.Helpers
 {
-    public class PasswordReset
+    public class EmailConfirmation
     {
         private readonly IConfiguration _configuration;
 
-        public PasswordReset(IConfiguration configuration)
+        public EmailConfirmation(IConfiguration configuration)
         {
             _configuration = configuration;
         }
 
-        public void SendMail(string link,string email)
+        public void SendMail(string link, string email)
         {
             try
             {
                 var message = new MimeMessage();
                 message.From.Add(MailboxAddress.Parse(_configuration["MailSettings:Username"].ToString()));
                 message.To.Add(MailboxAddress.Parse(email));
-                message.Subject = $"Şifre sıfırlama isteği";
-                message.Body = new TextPart(TextFormat.Html) { Text = $"<h2>Şifrenizi sıfırlamak için lütfen aşağıdaki linke tıklayınız.</h2><hr /><a href='{link}'>Şifre sıfırlama linki</a>" };
+                message.Subject = $"Email Doğrulama mesajı";
+                message.Body = new TextPart(TextFormat.Html) { Text = $"<h2>Epostanızı doğrulamak için lütfen aşağıdaki linke tıklayınız.</h2><hr /><a href='{link}'>Eposta doğrulama linki</a>" };
 
                 using var client = new SmtpClient();
                 client.Connect(_configuration["MailSettings:Host"], Int32.Parse(_configuration["MailSettings:Port"]), SecureSocketOptions.Auto);
@@ -39,7 +39,7 @@ namespace NetCoreIdentityExample.Helpers
             {
 
             }
-           
+
         }
     }
 }
