@@ -23,10 +23,12 @@
                 <input type="checkbox" asp-for="RememberMe"/> Beni Hatırla
             </div>
             <div class="form-group">
-                <input type="submit" value="Giriş Yap" class="btn btn-primary" />
+                <input type="submit" value="Giriş Yap" class="btn btn-primary col-12" />
             </div>
         </form>
-        <a asp-action="FacebookLogin" asp-controller="Home" class="btn btn-primary col-12">Facebook ile giriş yap</a>
+        <a asp-action="FacebookLogin" asp-controller="Home" class="btn btn-info col-12">Facebook ile giriş yap</a>
+        <a asp-action="GoogleLogin" asp-controller="Home" class="btn btn-danger col-12 mt-3">Google ile giriş yap</a>
+        <a asp-action="MicrosoftLogin" asp-controller="Home" class="btn btn-warning col-12 mt-3">Microsoft ile giriş yap</a>
         <a asp-action="ResetPassword" asp-controller="Home" class="btn btn-link">Şifremi unuttum.</a>
     </div>
 </div>

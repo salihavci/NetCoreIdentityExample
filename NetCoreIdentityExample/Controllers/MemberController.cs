@@ -16,10 +16,10 @@ using System.Security.Claims;
 
 namespace NetCoreIdentityExample.Controllers
 {
-    [Authorize(Roles ="Admin,Members")] //Bu controller'a sadece üyeler girebilir.
+    //[Authorize(Roles ="Admin,Members")] //Bu controller'a sadece üyeler girebilir.
+    [Authorize] //Bu controller'a sadece üyeler girebilir.
     public class MemberController : BaseController
     {
-
         public MemberController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager):base(null,userManager,signInManager,null,null)
         {
         }

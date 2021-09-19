@@ -51,6 +51,12 @@ namespace NetCoreIdentityExample
             services.AddAuthentication().AddFacebook(m=> {
                 m.AppId = Configuration["Authentication:Facebook:AppId"];
                 m.AppSecret = Configuration["Authentication:Facebook:AppSecret"];
+            }).AddGoogle(p=> {
+                p.ClientId = Configuration["Authentication:Google:AppId"];
+                p.ClientSecret = Configuration["Authentication:Google:AppSecret"];
+            }).AddMicrosoftAccount(o=> { 
+                o.ClientId = Configuration["Authentication:Microsoft:AppId"];
+                o.ClientSecret = Configuration["Authentication:Microsoft:AppSecret"];
             });
 
             //------------------------------Add Policy Handle ---------------------------------

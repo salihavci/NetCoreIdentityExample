@@ -274,6 +274,21 @@ namespace NetCoreIdentityExample.Controllers
         }
 
         [HttpGet]
+        public IActionResult GoogleLogin(string ReturnUrl)
+        {
+            string redirectUrl = Url.Action("ExternalResponse", "Home", new { ReturnUrl = ReturnUrl });
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties("Google", redirectUrl);
+            return new ChallengeResult("Google", properties); //Facebook'a kendi verdiğimiz property'ler ile git diyoruz.
+        }
+
+        [HttpGet]
+        public IActionResult MicrosoftLogin(string ReturnUrl) {
+            string redirectUrl = Url.Action("ExternalResponse", "Home", new { ReturnUrl = ReturnUrl });
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties("Microsoft", redirectUrl);
+            return new ChallengeResult("Microsoft", properties); //Facebook'a kendi verdiğimiz property'ler ile git diyoruz.
+        }
+
+        [HttpGet]
         public async Task<IActionResult> ExternalResponse(string ReturnUrl = "/")
         {
             try
@@ -305,32 +320,47 @@ namespace NetCoreIdentityExample.Controllers
                         {
                             user.UserName = info.Principal.FindFirst(ClaimTypes.Email).Value;
                         }
-                        IdentityResult results = await _userManager.CreateAsync(user);
-                        if (results.Succeeded)
+                        AppUser user2 = await _userManager.FindByEmailAsync(user.Email);
+                        if (user2 == null)
                         {
-                            IdentityResult LoginResult = await _userManager.AddLoginAsync(user, info); //Facebook - Google login olduğunda tabloya kayıt atar - Eğer kayıtlı değilse.
-                            if (LoginResult.Succeeded)
+                            IdentityResult results = await _userManager.CreateAsync(user);
+                            if (results.Succeeded)
                             {
-                                await _signInManager.SignOutAsync();
-                                await _signInManager.SignInAsync(user, true);
-                                return Redirect(ReturnUrl);
+                                IdentityResult LoginResult = await _userManager.AddLoginAsync(user, info); //Facebook - Google login olduğunda tabloya kayıt atar - Eğer kayıtlı değilse.
+                                if (LoginResult.Succeeded)
+                                {
+                                    //Normal kayıt - giriş için kullanılan method
+                                    //await _signInManager.SignOutAsync();
+                                    //await _signInManager.SignInAsync(user, true);
+
+                                    //External login - signup için kullanılan method (Claim için yapıldı)
+                                    await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, true);
+                                    return Redirect(ReturnUrl);
+                                }
+                                else
+                                {
+                                    AddModelError(LoginResult);
+                                }
                             }
                             else
                             {
-                                AddModelError(LoginResult);
+                                AddModelError(results);
                             }
                         }
                         else
                         {
-                            AddModelError(results);
+                            IdentityResult LoginResult = await _userManager.AddLoginAsync(user2, info);
+                            await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, true);
+                            return Redirect(ReturnUrl);
                         }
                     }
                 }
-                return RedirectToAction("Error", "Home");
+                List<string> errors = ModelState.Values.SelectMany(x=> x.Errors).Select(y=> y.ErrorMessage).ToList();
+                return View("Error", errors);
             }
             catch (Exception ex)
             {
-                return RedirectToAction("Error", "Home");
+                return View("Error", null);
             }
 
         }
