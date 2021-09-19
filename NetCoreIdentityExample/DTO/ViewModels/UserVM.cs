@@ -14,6 +14,7 @@ namespace NetCoreIdentityExample.DTO.ViewModels
         public string UserName { get; set; }
 
         [Display(Name = "Telefon Numarası")]
+        [RegularExpression(@"^(0(\d{3}) (\d{3}) (\d{2}) (\d{2}))$",ErrorMessage = "Telefon numarası girmelisiniz.")]
         public string PhoneNumber { get; set; }
 
         [Required(ErrorMessage = "Email adresi gereklidir.")]

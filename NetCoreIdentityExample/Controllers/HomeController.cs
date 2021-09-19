@@ -50,6 +50,11 @@ namespace NetCoreIdentityExample.Controllers
             {
                 if (ModelState.IsValid)
                 {
+                    if (_userManager.Users.Any(m => m.PhoneNumber == users.PhoneNumber))
+                    {
+                        ModelState.AddModelError("", "Bu telefon numarası sistemde kayıtlıdır. Lütfen tekrar deneyiniz.");
+                        return View(users);
+                    }
                     AppUser appUser = new AppUser();
                     appUser.UserName = users.UserName;
                     appUser.Email = users.Email;
@@ -339,9 +344,9 @@ namespace NetCoreIdentityExample.Controllers
                                     //await _signInManager.SignInAsync(user, true);
 
                                     //External login - signup için kullanılan method (Claim için yapıldı)
-                                    if (!_userManager.IsInRoleAsync(user2, "Members").Result)
+                                    if (!_userManager.IsInRoleAsync(user, "Members").Result)
                                     {
-                                        await _userManager.AddToRoleAsync(user2, "Members");
+                                        await _userManager.AddToRoleAsync(user, "Members");
                                     }
                                     await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, true);
                                     return Redirect(ReturnUrl);

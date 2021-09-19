@@ -100,7 +100,17 @@ namespace NetCoreIdentityExample.Controllers
                 ViewBag.gender = new SelectList(Enum.GetNames(typeof(Gender)));
                 if (ModelState.IsValid)
                 {
+
                     AppUser users = await  CurrentUser;
+                    string phone = _userManager.GetPhoneNumberAsync(users).Result;
+                    if (phone != user.PhoneNumber)
+                    {
+                        if (_userManager.Users.Any(m => m.PhoneNumber == user.PhoneNumber))
+                        {
+                            ModelState.AddModelError("", "Bu telefon numarası sistemde kayıtlıdır. Lütfen tekrar deneyiniz.");
+                            return View(user);
+                        }
+                    }
                     if (users != null)
                     {
                         users.UserName = user.UserName;
