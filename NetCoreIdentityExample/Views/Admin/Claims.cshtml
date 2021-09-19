@@ -1,0 +1,29 @@
+﻿@model List<Claim>
+@{
+    ViewData["Title"] = "Claims";
+    Layout = "~/Views/Shared/_AdminLayoutcshtml.cshtml";
+}
+
+<h1>Claims</h1>
+<table class="table table-bordered table-striped">
+
+    <thead>
+        <tr>
+            <td>Kim</td>
+            <td>Dağıtıcı</td>
+            <td>Ad</td>
+            <td>Değer</td>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Subject.Name</td>
+                <td>@item.Issuer</td><!--Authentication issue (Facebook , Google or Local Authority)-->
+                <td>@item.Type</td> <!--Authentication Key-->
+                <td>@item.Value</td> <!--Authentication Value-->
+            </tr>
+        }
+    </tbody>
+</table>

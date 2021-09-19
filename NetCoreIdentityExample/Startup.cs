@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NetCoreIdentityExample.Helpers.ClaimProvider;
+using NetCoreIdentityExample.Helpers.RequirementProvider;
 using NetCoreIdentityExample.Helpers.Validations;
 using NetCoreIdentityExample.Models;
 using System;
@@ -33,6 +37,18 @@ namespace NetCoreIdentityExample
             //-------------------------------Sql Server Connection-----------------------------
             services.AddDbContext<AppIdentityDbContext>(
                 options=>options.UseSqlServer("name=ConnectionStrings:DefaultConnection").UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+
+            //-------------------------------Add Policy And Claims-----------------------------
+            services.AddAuthorization(m => {
+                m.AddPolicy("BursaPolicy", p => p.RequireClaim("City","Bursa")); //Sadece City yazarak tüm City'leri kabul etmiþ olursun.
+                m.AddPolicy("ViolancePolicy", p => p.RequireClaim("Violance"));
+                m.AddPolicy("ExchangePolicy", p => p.AddRequirements(new ExpireDateExchangeRequirement())); //30 günlük zorunluluðu eklemiþ olduk.
+            });
+
+
+            //------------------------------Add Policy Handle ---------------------------------
+            services.AddTransient<IAuthorizationHandler, ExpireDateExchangeHandler>();
+
             //-------------------------------Identity Options----------------------------------
             services.AddIdentity<AppUser,AppRole>(m=> {
                 m.Password.RequiredLength = 8;
@@ -44,7 +60,8 @@ namespace NetCoreIdentityExample
                 m.User.RequireUniqueEmail = true;
                 m.User.AllowedUserNameCharacters = "abcçdefgðhýijklmnoöpqrsþtuüvwxyzABCÇDEFGÐHIÝJKLMNOÖPQRSÞTUÜVWXYZ0123456789-._";
             }).AddEntityFrameworkStores<AppIdentityDbContext>().AddPasswordValidator<PasswordValidator>()
-            .AddUserValidator<UserValidator>().AddErrorDescriber<CustomIdentityErrorDescriber>().AddDefaultTokenProviders();
+            .AddUserValidator<UserValidator>().AddErrorDescriber<CustomIdentityErrorDescriber>()
+            .AddDefaultTokenProviders();
             //------------------------------Add Cookie----------------------------------------
             CookieBuilder cookieBuilder = new CookieBuilder();
             cookieBuilder.Name = "LoggedUser";
@@ -62,6 +79,9 @@ namespace NetCoreIdentityExample
                 m.SlidingExpiration = true; //Eðer true olursa tekrar cookie süresi uzayacak.
                 m.ExpireTimeSpan = TimeSpan.FromDays(60);
             });
+
+            //----------------------------Dependency Injection-----------------------------------
+            services.AddScoped<IClaimsTransformation, ClaimProvider>(); //Her request'te bu nesneyi oluþtur. (Transient = Her karþýlaþtýðýnda oluþtur, Singleton = Uygulama bir kere ayaða kalktýðý zaman olutþtur ve lifecycle dolana kadar kalsýn)
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

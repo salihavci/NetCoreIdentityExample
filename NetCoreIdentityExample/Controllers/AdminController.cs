@@ -211,5 +211,11 @@ namespace NetCoreIdentityExample.Controllers
         {
             return View(_userManager.Users.ToList());
         }
+
+        [HttpGet]
+        public IActionResult Claims()
+        {
+            return View(User.Claims.ToList()); //Cookie'den gelen bilgileri gösterir.
+        }
     }
 }
