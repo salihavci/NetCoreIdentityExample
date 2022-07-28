@@ -10,7 +10,7 @@ namespace NetCoreIdentityExample.DTO.ViewModels
     {
         [Display(Name = "Email Adresiniz")]
         [Required(ErrorMessage ="Email alanı zorunludur.")]
-        [EmailAddress()]
+        [EmailAddress]
         public string Email { get; set; }
 
         [Display(Name = "Parolanız")]

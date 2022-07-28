@@ -91,7 +91,7 @@ namespace NetCoreIdentityExample.Controllers
                 return RedirectToAction("Roles", "Admin");
             }
         }
-
+        
         [HttpGet]
         public IActionResult UpdateRole(string id)
         {

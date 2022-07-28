@@ -13,6 +13,7 @@ using NetCoreIdentityExample.Helpers.ClaimProvider;
 using NetCoreIdentityExample.Helpers.RequirementProvider;
 using NetCoreIdentityExample.Helpers.Validations;
 using NetCoreIdentityExample.Models;
+using NetCoreIdentityExample.Service;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,11 +33,17 @@ namespace NetCoreIdentityExample
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.Configure<TwoFactorOptions>(Configuration.GetSection("TwoFactorOptions"));
+            services.AddScoped<TwoFactorService>();
+            services.AddScoped<EmailSender>();
+            services.AddScoped<SmsSender>();
+            services.AddScoped<AppUser>();
+            services.AddScoped<AppRole>();
             services.AddControllersWithViews().AddRazorRuntimeCompilation();
             services.AddMvc();
             //-------------------------------Sql Server Connection-----------------------------
             services.AddDbContext<AppIdentityDbContext>(
-                options=>options.UseSqlServer("name=ConnectionStrings:DefaultConnection").UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+                options=>options.UseSqlServer("name=ConnectionStrings:DefaultConnection").UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking).EnableSensitiveDataLogging());
 
             //-------------------------------Add Policy And Claims-----------------------------
             services.AddAuthorization(m => {
@@ -93,6 +100,11 @@ namespace NetCoreIdentityExample
                 m.ExpireTimeSpan = TimeSpan.FromDays(60);
             });
 
+            services.AddSession(options => {
+                options.IdleTimeout = TimeSpan.FromMinutes(30); //Default hali 20 dk'dýr.
+                options.Cookie.Name = "MainSession";
+            });
+
             //----------------------------Dependency Injection---------------------------------
             services.AddScoped<IClaimsTransformation, ClaimProvider>(); //Her request'te bu nesneyi oluþtur. (Transient = Her karþýlaþtýðýnda oluþtur, Singleton = Uygulama bir kere ayaða kalktýðý zaman olutþtur ve lifecycle dolana kadar kalsýn)
         }
@@ -102,23 +114,23 @@ namespace NetCoreIdentityExample
         {
             if (env.IsDevelopment())
             {
-                app.UseDeveloperExceptionPage(); 
+                app.UseDeveloperExceptionPage();
+                app.UseBrowserLink();
             }
             else
             {
+                app.UseHttpsRedirection();
                 app.UseExceptionHandler("/Home/Error");
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
             app.UseAuthentication();
             app.UseStatusCodePages();
-            app.UseHttpsRedirection();
             app.UseStaticFiles();
-
             app.UseRouting();
 
             app.UseAuthorization();
-
+            app.UseSession();
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(

@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NetCoreIdentityExample.DTO.Enums;
 using NetCoreIdentityExample.DTO.ViewModels;
 using NetCoreIdentityExample.Helpers;
 using NetCoreIdentityExample.Models;
+using NetCoreIdentityExample.Service;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -17,10 +20,14 @@ namespace NetCoreIdentityExample.Controllers
 {
     public class HomeController : BaseController
     {
-
-        public HomeController(ILogger<HomeController> logger, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IConfiguration config) : base(logger, userManager, signInManager, config, null)
+        private readonly TwoFactorService _twoFactorService;
+        private readonly EmailSender _emailSender;
+        private readonly SmsSender _smsSender;
+        public HomeController(ILogger<HomeController> logger, UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IConfiguration config,TwoFactorService twoFactorService,EmailSender emailSender, SmsSender smsSender) : base(logger, userManager, signInManager, config, null)
         {
-
+            _twoFactorService = twoFactorService;
+            _emailSender = emailSender;
+            _smsSender = smsSender;
         }
 
         public IActionResult Index()
@@ -59,6 +66,7 @@ namespace NetCoreIdentityExample.Controllers
                     appUser.UserName = users.UserName;
                     appUser.Email = users.Email;
                     appUser.PhoneNumber = users.PhoneNumber;
+                    appUser.TwoFactor = 0;
                     IdentityResult result = await _userManager.CreateAsync(appUser, users.Password);
                     if (result.Succeeded)
                     {
@@ -87,7 +95,7 @@ namespace NetCoreIdentityExample.Controllers
         }
 
         [HttpGet]
-        public IActionResult Login(string returnUrl)
+        public IActionResult Login(string returnUrl = "/")
         {
             TempData["ReturnUrl"] = returnUrl;
             return View();
@@ -113,41 +121,54 @@ namespace NetCoreIdentityExample.Controllers
                             ModelState.AddModelError("", "Hesabınız aktifleştirilemediği için giriş yapamazsınız. Öncelikle üyeliğinizi aktifleştirmeniz gerekmektedir.");
                             return View(user);
                         }
-                        await _signInManager.SignOutAsync();
-                        //3. parametre beni hatırla bölümü için
-                        //4. parametre kullanıcı kilitleme için
-                        SignInResult result = await _signInManager.PasswordSignInAsync(users, user.Password, user.RememberMe, false);
-                        if (result.Succeeded)
+                        bool userCheck = await _userManager.CheckPasswordAsync(users, user.Password);
+                        if (userCheck)
                         {
                             await _userManager.ResetAccessFailedCountAsync(users); // Başarısız giriş sayısını sıfırlar.
-                            if (TempData["ReturnUrl"] != null)
+                            await _signInManager.SignOutAsync();
+                            //3. parametre beni hatırla bölümü için
+                            //4. parametre kullanıcı kilitleme için
+                            SignInResult result = await _signInManager.PasswordSignInAsync(users, user.Password, user.RememberMe, false);
+                            if (result.RequiresTwoFactor)
+                            {
+                                if (users.TwoFactor == (sbyte)TwoFactor.Email || users.TwoFactor == (sbyte)TwoFactor.Phone)
+                                {
+                                    HttpContext.Session.Remove("currentTime");
+                                }
+                                return RedirectToAction("TwoFactorLogin", "Home",new { returnUrl = TempData["ReturnUrl"].ToString()});
+                            }
+                            else
                             {
                                 return Redirect(TempData["ReturnUrl"].ToString());
                             }
-                            return RedirectToAction("Index", "Member");
                         }
+                        //if (result.Succeeded)
+                        //{
+                        //    await _userManager.ResetAccessFailedCountAsync(users); // Başarısız giriş sayısını sıfırlar.
+                        //    if (TempData["ReturnUrl"] != null)
+                        //    {
+                        //        return Redirect(TempData["ReturnUrl"].ToString());
+                        //    }
+                        //    return RedirectToAction("Index", "Member");
+                        //}
                         //else if (result.IsLockedOut) // Kullanıcı kilitli mi
                         //{
                         //    ModelState.AddModelError("", "Hesabınıza 3 kez başarısız giriş yaptınız. 20 dakika süre ile hesabınız kilitlenmiştir. Lütfen daha sonra tekrar deneyiniz.");
                         //}
                         else
                         {
-                            if (!result.IsLockedOut)
+                            await _userManager.AccessFailedAsync(users);
+                            int failedCount = await _userManager.GetAccessFailedCountAsync(users);
+                            ModelState.AddModelError("", $"{failedCount} kez başarısız giriş sağladınız. Lütfen tekrar deneyiniz.");
+                            if (failedCount == 3)
                             {
-                                await _userManager.AccessFailedAsync(users);
-                                int failedCount = await _userManager.GetAccessFailedCountAsync(users);
-                                ModelState.AddModelError("", $"{failedCount} kez başarısız giriş sağladınız. Lütfen tekrar deneyiniz.");
-                                if (failedCount == 3)
-                                {
-                                    await _userManager.SetLockoutEndDateAsync(users, System.DateTimeOffset.Now.AddMinutes(20));
-                                    ModelState.AddModelError("", "Hesabınıza 3 kez başarısız giriş yaptınız. 20 dakika süre ile hesabınız kilitlenmiştir. Lütfen daha sonra tekrar deneyiniz.");
-                                }
-                                else
-                                {
-                                    ModelState.AddModelError("", "Geçersiz email adresi ve ya şifresi.");
-                                }
+                                await _userManager.SetLockoutEndDateAsync(users, System.DateTimeOffset.Now.AddMinutes(20));
+                                ModelState.AddModelError("", "Hesabınıza 3 kez başarısız giriş yaptınız. 20 dakika süre ile hesabınız kilitlenmiştir. Lütfen daha sonra tekrar deneyiniz.");
                             }
-
+                            else
+                            {
+                                ModelState.AddModelError("", "Geçersiz email adresi ve ya şifresi.");
+                            }
                         }
 
                         //else if (result.IsNotAllowed) // Kullanıcı giriş yapıp yapamayacağı durumda doğru bilgileri girdiğindeki durum
@@ -291,7 +312,8 @@ namespace NetCoreIdentityExample.Controllers
         }
 
         [HttpGet]
-        public IActionResult MicrosoftLogin(string ReturnUrl) {
+        public IActionResult MicrosoftLogin(string ReturnUrl)
+        {
             string redirectUrl = Url.Action("ExternalResponse", "Home", new { ReturnUrl = ReturnUrl });
             var properties = _signInManager.ConfigureExternalAuthenticationProperties("Microsoft", redirectUrl);
             return new ChallengeResult("Microsoft", properties); //Facebook'a kendi verdiğimiz property'ler ile git diyoruz.
@@ -369,7 +391,7 @@ namespace NetCoreIdentityExample.Controllers
                         }
                     }
                 }
-                List<string> errors = ModelState.Values.SelectMany(x=> x.Errors).Select(y=> y.ErrorMessage).ToList();
+                List<string> errors = ModelState.Values.SelectMany(x => x.Errors).Select(y => y.ErrorMessage).ToList();
                 return View("Error", errors);
             }
             catch (Exception ex)
@@ -377,6 +399,102 @@ namespace NetCoreIdentityExample.Controllers
                 return View("Error", null);
             }
 
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> TwoFactorLogin(string ReturnUrl = "/")
+        {
+            var user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+            TempData["ReturnUrl"] = ReturnUrl;
+
+            switch ((TwoFactor)user.TwoFactor)
+            {
+                case TwoFactor.Email:
+                    if (_twoFactorService.TimeLeft(HttpContext) == 0)
+                    {
+                        return RedirectToAction("Login","Home");
+                    }
+                    ViewBag.timeLeft = _twoFactorService.TimeLeft(HttpContext);
+                    HttpContext.Session.SetString("codeVerification",_emailSender.Send(user.Email.ToString()));
+                    break;
+                case TwoFactor.Phone:
+                    if (_twoFactorService.TimeLeft(HttpContext) == 0)
+                    {
+                        return RedirectToAction("Login", "Home");
+                    }
+                    ViewBag.timeLeft = _twoFactorService.TimeLeft(HttpContext);
+                    HttpContext.Session.SetString("codeVerification", _smsSender.Send(user.PhoneNumber.ToString()));
+                    break;
+            }
+            return View(new TwoFactorLoginVM() { TwoFactorType = (TwoFactor)user.TwoFactor, isRecoverCode = false, isRememberMe = false, VerificationCode = string.Empty });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> TwoFactorLogin(TwoFactorLoginVM vm)
+        {
+            var user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+            ModelState.Clear(); //Model hatalarını temizleme
+            bool isSuccessAuth = false;
+            if ((TwoFactor)user.TwoFactor == TwoFactor.MicrosoftGoogle)
+            {
+                SignInResult result;
+                if (vm.isRecoverCode)
+                {
+                    result = await _signInManager.TwoFactorRecoveryCodeSignInAsync(vm.VerificationCode);
+                }
+                else
+                {
+                    result = await _signInManager.TwoFactorAuthenticatorSignInAsync(vm.VerificationCode, vm.isRememberMe, false); //Eğer son adım true ise bir daha iki adımlı doğrulama sorgulanmayacak (Cookie'ye kaydedecek)
+                }
+                if (result.Succeeded)
+                {
+                    isSuccessAuth = true;
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Doğrulama / Kurtarma kodu yanlış.");
+                }
+            }
+            else if ((TwoFactor)user.TwoFactor == TwoFactor.Email || (TwoFactor)user.TwoFactor == TwoFactor.Phone)
+            {
+                ViewBag.timeLeft = _twoFactorService.TimeLeft(HttpContext);
+                if (vm.VerificationCode == HttpContext.Session.GetString("codeVerification").ToString())
+                {
+                    await _signInManager.SignOutAsync();
+                    await _signInManager.SignInAsync(user, vm.isRememberMe);
+                    HttpContext.Session.Remove("currentTime");
+                    HttpContext.Session.Remove("codeVerification");
+                    isSuccessAuth = true;
+                }
+                else
+                {
+                    ModelState.AddModelError("","Doğrulama kodunuz hatalıdır.");
+                    isSuccessAuth = false;
+                }
+            }
+
+            if (isSuccessAuth)
+            {
+                return Redirect(TempData["ReturnUrl"].ToString());
+            }
+            vm.TwoFactorType = (TwoFactor)user.TwoFactor; //Hidden alanı tanımlamamak için burada verdik.
+            return View(vm);
+        }
+
+        [HttpGet]
+        public JsonResult AgainSendEmail() 
+        {
+            try
+            {
+                var user = _signInManager.GetTwoFactorAuthenticationUserAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+                HttpContext.Session.SetString("codeVerification",_emailSender.Send(user.Email));
+                return Json(true);
+            }
+            catch (Exception ex)
+            {
+                //Loglama Yap
+                return Json(false);
+            }
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

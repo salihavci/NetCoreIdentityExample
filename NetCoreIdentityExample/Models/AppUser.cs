@@ -12,6 +12,7 @@ namespace NetCoreIdentityExample.Models
         public string Picture { get; set; }
         public DateTime? Birthday { get; set; }
         public int Gender { get; set; }
+        public sbyte? TwoFactor { get; set; }
 
     }
 }

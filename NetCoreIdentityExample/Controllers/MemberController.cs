@@ -13,15 +13,18 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Http;
 using System.IO;
 using System.Security.Claims;
+using NetCoreIdentityExample.Service;
 
 namespace NetCoreIdentityExample.Controllers
 {
-    [Authorize(Roles ="Admin,Members")] //Bu controller'a sadece üyeler girebilir.
+    [Authorize(Roles = "Admin,Members")] //Bu controller'a sadece üyeler girebilir.
     //[Authorize] //Bu controller'a sadece üyeler girebilir.
     public class MemberController : BaseController
     {
-        public MemberController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager):base(null,userManager,signInManager,null,null)
+        private readonly TwoFactorService _twoFactorService;
+        public MemberController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, TwoFactorService twoFactorService) : base(null, userManager, signInManager, null, null)
         {
+            _twoFactorService = twoFactorService;
         }
         //[Authorize] //Bu sayfaya sadece üyeler girebilir.
         public async Task<IActionResult> Index()
@@ -92,7 +95,7 @@ namespace NetCoreIdentityExample.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> UserEdit(UserVM user,IFormFile userPicture)
+        public async Task<IActionResult> UserEdit(UserVM user, IFormFile userPicture)
         {
             try
             {
@@ -101,7 +104,7 @@ namespace NetCoreIdentityExample.Controllers
                 if (ModelState.IsValid)
                 {
 
-                    AppUser users = await  CurrentUser;
+                    AppUser users = await CurrentUser;
                     string phone = _userManager.GetPhoneNumberAsync(users).Result;
                     if (phone != user.PhoneNumber)
                     {
@@ -120,7 +123,7 @@ namespace NetCoreIdentityExample.Controllers
                         {
                             var filename = Guid.NewGuid().ToString() + Path.GetExtension(userPicture.FileName);
                             var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/img", filename);
-                            using (var stream = new FileStream(path,FileMode.Create))
+                            using (var stream = new FileStream(path, FileMode.Create))
                             {
                                 await userPicture.CopyToAsync(stream);
                                 users.Picture = "/img/" + filename;
@@ -157,7 +160,6 @@ namespace NetCoreIdentityExample.Controllers
         [HttpGet]
         public IActionResult Logout()
         {
-
             _signInManager.SignOutAsync();
             return RedirectToAction("Login", "Home");
         }
@@ -190,7 +192,7 @@ namespace NetCoreIdentityExample.Controllers
             return View();
         }
 
-        [Authorize(Policy ="BursaPolicy")] //Claim Bazlı yetki kontrolü
+        [Authorize(Policy = "BursaPolicy")] //Claim Bazlı yetki kontrolü
         [HttpGet]
         public IActionResult BursaPage()
         {
@@ -207,10 +209,10 @@ namespace NetCoreIdentityExample.Controllers
 
         public async Task<IActionResult> ExchangeRedirect()
         {
-            bool result = User.HasClaim(x=> x.Type=="ExpireDateExchange");
+            bool result = User.HasClaim(x => x.Type == "ExpireDateExchange");
             if (!result)
             {
-                Claim ExchangeClaim = new Claim("ExpireDateExchange",DateTime.Now.AddDays(30).Date.ToShortDateString(),ClaimValueTypes.String,"Internal");
+                Claim ExchangeClaim = new Claim("ExpireDateExchange", DateTime.Now.AddDays(30).Date.ToShortDateString(), ClaimValueTypes.String, "Internal");
                 await _userManager.AddClaimAsync(CurrentUser.Result, ExchangeClaim);
                 await _signInManager.SignOutAsync();
                 await _signInManager.SignInAsync(CurrentUser.Result, true);
@@ -224,5 +226,89 @@ namespace NetCoreIdentityExample.Controllers
         {
             return View();
         }
+
+        [HttpGet]
+        public async Task<IActionResult> TwoFactorWithAuthenticator()
+        {
+            string unformattedKey = await _userManager.GetAuthenticatorKeyAsync(CurrentUser.Result);
+            if (string.IsNullOrEmpty(unformattedKey))
+            {
+                await _userManager.ResetAuthenticatorKeyAsync(CurrentUser.Result);
+                unformattedKey = await _userManager.GetAuthenticatorKeyAsync(CurrentUser.Result);
+            }
+            var vm = new AuthenticatorVM();
+            vm.SharedKey = unformattedKey;
+            vm.AuthenticatorURI = _twoFactorService.GenerateQrCodeUri(CurrentUser.Result.Email, unformattedKey);
+            return View(vm);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> TwoFactorWithAuthenticator(AuthenticatorVM vm)
+        {
+            var user = CurrentUser.ConfigureAwait(false).GetAwaiter().GetResult();
+            var verificationCode = vm.VerificationCode.Replace(" ", string.Empty).Replace("-", string.Empty);
+            var is2FATokenValid = await _userManager.VerifyTwoFactorTokenAsync(user, _userManager.Options.Tokens.AuthenticatorTokenProvider, verificationCode);
+            if (is2FATokenValid)
+            {
+                user.TwoFactorEnabled = true;
+                user.TwoFactor = (sbyte)TwoFactor.MicrosoftGoogle;
+                //await _userManager.UpdateAsync(user);
+                var recoveryCodes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 5);
+                TempData["recoveryCodes"] = recoveryCodes;
+                TempData["message"] = "İki adımlı kimlik doğrulama tipiniz Microsoft/Google Authenticator olarak belirlenmiştir.";
+                //Buradaki Async işleminden dönen ID tracking hatasına bakılacak 
+                return RedirectToAction("TwoFactorAuth", "Member");
+            }
+            else
+            {
+                ModelState.AddModelError("", "Girdiğiniz doğrulama kodu yanlıştır. Lütfen tekrar deneyiniz.");
+                return View(vm);
+            }
+        }
+
+        [HttpGet]
+        public IActionResult TwoFactorAuth()
+        {
+            return View(new AuthenticatorVM() { TwoFactorType = (TwoFactor)CurrentUser.Result.TwoFactor });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> TwoFactorAuth(AuthenticatorVM vm)
+        {
+            var user = CurrentUser.ConfigureAwait(false).GetAwaiter().GetResult();
+
+            switch (vm.TwoFactorType)
+            {
+                case TwoFactor.None:
+                    user.TwoFactorEnabled = false;
+                    user.TwoFactor = (sbyte)TwoFactor.None;
+                    TempData["message"] = "İki adımlı kimlik doğrulama tipiniz hiçbiri olarak belirlenmiştir.";
+                    break;
+                case TwoFactor.Phone:
+                    if (string.IsNullOrEmpty(user.PhoneNumber))
+                    {
+                        ViewBag.warning = "Telefon numaranız belirtilmemiştir. Lütfen kullanıcı güncelleme sayfasından telefon numaranızı belirtiniz.";
+                    }
+                    user.TwoFactorEnabled = true;
+                    user.TwoFactor = (sbyte)TwoFactor.Phone;
+                    TempData["message"] = "İki adımlı kimlik doğrulama tipiniz telefon onayı olarak belirlenmiştir.";
+                    break;
+                case TwoFactor.Email:
+                    user.TwoFactorEnabled = true;
+                    user.TwoFactor = (sbyte)TwoFactor.Email;
+                    TempData["message"] = "İki adımlı kimlik doğrulama tipiniz email onayı olarak belirlenmiştir.";
+                    break;
+                case TwoFactor.MicrosoftGoogle:
+                    return RedirectToAction("TwoFactorWithAuthenticator", "Member");
+                default:
+                    break;
+            }
+            await _userManager.UpdateAsync(user);
+            return View(vm);
+
+        }
+
+
+
     }
 }
