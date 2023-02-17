@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using NetCoreIdentityExample.ApiServices;
 using NetCoreIdentityExample.Helpers.ClaimProvider;
 using NetCoreIdentityExample.Helpers.RequirementProvider;
 using NetCoreIdentityExample.Helpers.Validations;
@@ -34,7 +33,6 @@ namespace NetCoreIdentityExample
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddLocalApiAuthentication();
             services.Configure<TwoFactorOptions>(Configuration.GetSection("TwoFactorOptions"));
             services.AddScoped<TwoFactorService>();
             services.AddScoped<EmailSender>();
@@ -109,20 +107,6 @@ namespace NetCoreIdentityExample
 
             //----------------------------Dependency Injection---------------------------------
             services.AddScoped<IClaimsTransformation, ClaimProvider>(); //Her request'te bu nesneyi oluþtur. (Transient = Her karþýlaþtýðýnda oluþtur, Singleton = Uygulama bir kere ayaða kalktýðý zaman olutþtur ve lifecycle dolana kadar kalsýn)
-
-            var builder = services.AddIdentityServer(opts =>
-            {
-                opts.Events.RaiseSuccessEvents = true;
-                opts.Events.RaiseErrorEvents = true;
-                opts.Events.RaiseFailureEvents = true;
-                opts.Events.RaiseInformationEvents = true;
-
-                opts.EmitStaticAudienceClaim= true;
-            }).AddInMemoryApiScopes(Config.ApiScopes).AddInMemoryApiResources(Config.ApiResources).AddInMemoryClients(Config.Clients).AddInMemoryIdentityResources(Config.IdentityResources);
-
-            builder.AddResourceOwnerValidator<IdentityResourceOwnerPasswordValidator>();
-
-            builder.AddDeveloperSigningCredential();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -140,7 +124,6 @@ namespace NetCoreIdentityExample
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
-            app.UseIdentityServer();
             app.UseAuthentication();
             app.UseStatusCodePages();
             app.UseStaticFiles();
